@@ -905,21 +905,50 @@
 
   // ============================================================
   // دوال الاتصال بالـ API (بديل google.script.run)
+  // Apps Script يُحوّل كل طلب داخلياً إلى رابط "echo" مؤقت، وأحياناً
+  // يفشل هذا التحويل بشكل عابر (404 أو صفحة HTML بدل JSON) — لذلك
+  // نعيد المحاولة تلقائياً قبل إظهار خطأ للمستخدم.
   // ============================================================
+  function fetchWithRetry_(url, options, attempts) {
+    attempts = attempts || 3;
+    return fetch(url, options)
+      .then(function(res) {
+        if (!res.ok) { throw new Error("HTTP " + res.status); }
+        return res.text();
+      })
+      .then(function(text) {
+        try {
+          return JSON.parse(text);
+        } catch (e) {
+          throw new Error("استجابة غير صالحة من الخادم");
+        }
+      })
+      .catch(function(err) {
+        if (attempts > 1) {
+          return new Promise(function(resolve) {
+            setTimeout(resolve, 700);
+          }).then(function() {
+            return fetchWithRetry_(url, options, attempts - 1);
+          });
+        }
+        throw err;
+      });
+  }
+
   function apiGet(action, params) {
     var url = API_URL + "?action=" + encodeURIComponent(action);
     for (var key in params) {
       url += "&" + encodeURIComponent(key) + "=" + encodeURIComponent(params[key]);
     }
-    return fetch(url).then(function(res) { return res.json(); });
+    return fetchWithRetry_(url);
   }
 
   function apiPost(action, payload) {
-    return fetch(API_URL, {
+    return fetchWithRetry_(API_URL, {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
       body: JSON.stringify({ action: action, payload: payload || {} })
-    }).then(function(res) { return res.json(); });
+    });
   }
 
   // ============================================================
@@ -1054,11 +1083,18 @@
   // ✅ جلب رقم واتساب مرة واحدة عند تحميل الصفحة (يتبدل بالدور مع كل تحميل صفحة، مشترك بين كل الزوار)
   // يُستخدم لضبط رابط الزر العائم فوراً، ولتوفير رحلة اتصال إضافية عند التسجيل
   // ============================================================
+  var DEFAULT_WHATSAPP_NUMBER = "970567783330";
+
   function initWhatsAppNumber() {
+    var floatingLink = document.getElementById('floatingWhatsAppLink');
+    if (floatingLink) {
+      var defaultMessage = "السلام عليكم، لدي استفسار بخصوص خدمات بيت حانون";
+      floatingLink.href = "https://wa.me/" + DEFAULT_WHATSAPP_NUMBER + "?text=" + encodeURIComponent(defaultMessage);
+    }
+
     apiPost('getNextWhatsAppNumber', {})
       .then(function(data) {
         sessionWhatsAppNumber = data.number;
-        var floatingLink = document.getElementById('floatingWhatsAppLink');
         if (floatingLink) {
           var message = "السلام عليكم، لدي استفسار بخصوص خدمات بيت حانون";
           floatingLink.href = "https://wa.me/" + data.number + "?text=" + encodeURIComponent(message);
@@ -1318,8 +1354,9 @@
       link.href = "https://wa.me/" + number + "?text=" + encodeURIComponent(message);
     }
 
+    setHref(sessionWhatsAppNumber || DEFAULT_WHATSAPP_NUMBER);
+
     if (sessionWhatsAppNumber) {
-      setHref(sessionWhatsAppNumber);
       return;
     }
 
