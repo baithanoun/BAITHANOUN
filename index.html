@@ -344,7 +344,8 @@
     }
 
     .action-buttons .btn-confirm,
-    .action-buttons .whatsapp-link {
+    .action-buttons .whatsapp-link,
+    .action-buttons .btn-edit-data {
       flex: 1;
       display: inline-flex;
       align-items: center;
@@ -377,6 +378,16 @@
       opacity: 0.5;
       cursor: not-allowed;
       transform: none;
+    }
+
+    .btn-edit-data {
+      background: linear-gradient(135deg, #e67e22 0%, #f39c12 100%);
+      box-shadow: 0 4px 15px rgba(230, 126, 34, 0.3);
+    }
+
+    .btn-edit-data:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 25px rgba(230, 126, 34, 0.4);
     }
 
     /* ===== حالات النتائج ===== */
@@ -858,6 +869,7 @@
   // ============================================================
   var currentRowIndex = null;
   var currentIdNumber = null;
+  var currentSearchData = null;
   var isConfirmed = false;
   var isSearching = false;
 
@@ -1023,6 +1035,7 @@
           var data = response.data || {};
           var time = response.searchTime || 0;
           currentRowIndex = response.rowIndex;
+          currentSearchData = data;
           isConfirmed = response.isConfirmed || false;
 
           var html = '';
@@ -1050,9 +1063,9 @@
                 <button class="btn-confirm" onclick="confirmRegistration()">
                   ✅ تأكيد التسجيل
                 </button>
-                <a href="#" onclick="editOnWhatsApp(); return false;" class="whatsapp-link">
-                  <span class="whatsapp-icon">💬</span> تعديل عبر واتساب
-                </a>
+                <button class="btn-edit-data" onclick="toggleEditForm()">
+                  ✏️ تعديل البيانات
+                </button>
               </div>
             `;
           }
@@ -1290,27 +1303,137 @@
   }
 
   // ============================================================
-  // ✅ تعديل عبر واتساب - يتبدل الرقم مع كل ضغطة (مشترك بين كل الزوار)
+  // ✅ إظهار/إخفاء نموذج تعديل بيانات الأسرة (مُعبّأ مسبقاً بالبيانات الحالية)
   // ============================================================
-  function editOnWhatsApp() {
-    var newTab = window.open('', '_blank');
-    var nameElement = document.querySelector('.value strong');
-    var name = nameElement ? nameElement.textContent : "";
+  function toggleEditForm() {
+    var existing = document.getElementById('editForm');
+    if (existing) {
+      existing.remove();
+      return;
+    }
 
-    apiPost('getNextWhatsAppNumber', {})
-      .then(function(data) {
-        var whatsappNumber = data.number;
-        var message = "السلام عليكم، أرغب في تعديل بيانات أسرتي المسجلة في سجل بيت حانون:\n\nرقم الهوية: " + (currentIdNumber || "") + "\nاسم رب الأسرة: " + name + "\n\nيرجى التواصل معي لتعديل البيانات.";
-        var url = "https://wa.me/" + whatsappNumber + "?text=" + encodeURIComponent(message);
-        if (newTab) {
-          newTab.location.href = url;
+    var data = currentSearchData || {};
+    var prefill = function(value) {
+      return (value && value !== '-') ? escapeHtml(value) : '';
+    };
+
+    var container = document.createElement('div');
+    container.className = 'register-form';
+    container.id = 'editForm';
+    container.innerHTML = `
+      <div class="form-group">
+        <label for="editName">👤 الاسم الرباعي لرب الأسرة</label>
+        <input type="text" id="editName" value="${prefill(data.name)}" autocomplete="off">
+      </div>
+      <div class="form-group">
+        <label for="editMobile">📱 رقم الجوال</label>
+        <input type="tel" id="editMobile" value="${prefill(data.mobile)}" placeholder="05XXXXXXXX" inputmode="tel" maxlength="10" autocomplete="off">
+      </div>
+      <div class="form-group">
+        <label for="editGovernorate">🗺️ محافظة النزوح</label>
+        <select id="editGovernorate">
+          <option value="" disabled selected>محافظة النزوح الحالية</option>
+          <option value="محافظة الشمال">محافظة الشمال</option>
+          <option value="محافظة غزة">محافظة غزة</option>
+          <option value="محافظة الوسطى">محافظة الوسطى</option>
+          <option value="محافظة خانيونس">محافظة خانيونس</option>
+          <option value="محافظة رفح">محافظة رفح</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="editShelter">🏕️ اسم مركز الإيواء / المخيم</label>
+        <input type="text" id="editShelter" placeholder="اسم مركز الإيواء أو المخيم" autocomplete="off">
+      </div>
+      <div class="form-group">
+        <label for="editAddress">🏠 العنوان</label>
+        <input type="text" id="editAddress" value="${prefill(data.bhAz)}" placeholder="العنوان بالتفصيل" autocomplete="off">
+      </div>
+      <div class="form-group">
+        <label for="editNotes">📝 ملاحظات (اختياري)</label>
+        <textarea id="editNotes" rows="2" placeholder="أي ملاحظات إضافية"></textarea>
+      </div>
+      <button class="btn-register" id="editSubmitBtn" onclick="submitAddressUpdateForm()">
+        ✅ إرسال التعديل
+      </button>
+    `;
+
+    var actionButtons = document.querySelector('.action-buttons');
+    actionButtons.insertAdjacentElement('afterend', container);
+  }
+
+  // ============================================================
+  // ✅ إرسال طلب تعديل بيانات الأسرة إلى شيت update_address
+  // ============================================================
+  function submitAddressUpdateForm() {
+    var nameInput = document.getElementById('editName');
+    var mobileInput = document.getElementById('editMobile');
+    var governorateInput = document.getElementById('editGovernorate');
+    var shelterInput = document.getElementById('editShelter');
+    var addressInput = document.getElementById('editAddress');
+    var notesInput = document.getElementById('editNotes');
+    var submitBtn = document.getElementById('editSubmitBtn');
+
+    var name = nameInput.value.trim();
+    var mobile = mobileInput.value.replace(/\D/g, '');
+    var governorate = governorateInput.value;
+    var shelter = shelterInput.value.trim();
+    var address = addressInput.value.trim();
+    var notes = notesInput.value.trim();
+
+    if (!name) {
+      showToast("⚠️ يرجى إدخال الاسم الرباعي لرب الأسرة", "error", "", "⚠️");
+      nameInput.focus();
+      return;
+    }
+    if (mobile.length !== 10) {
+      showToast("⚠️ رقم الجوال يجب أن يتكون من 10 أرقام", "error", "", "⚠️");
+      mobileInput.focus();
+      return;
+    }
+    if (!governorate) {
+      showToast("⚠️ يرجى اختيار المحافظة", "error", "", "⚠️");
+      governorateInput.focus();
+      return;
+    }
+
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '⏳ <span class="spinner">⟳</span> جاري الإرسال...';
+
+    apiPost('submitAddressUpdate', {
+      hofId: currentIdNumber,
+      hofName: name,
+      hofMobile: mobile,
+      hofAddress: address,
+      hofGovernorate: governorate,
+      hofShelter: shelter,
+      hofNotes: notes
+    })
+      .then(function(response) {
+        if (response.success) {
+          showToast(response.message, "success", "سيتم مراجعة الطلب والتواصل معكم", "✅");
+
+          var formDiv = document.getElementById('editForm');
+          if (formDiv) {
+            formDiv.innerHTML = `
+              <div class="confirmed-message">
+                <span class="icon">✅</span>
+                <strong>تم إرسال طلب التعديل بنجاح!</strong><br>
+                <span style="font-size: 13px; font-weight: normal; color: #28a745;">
+                  سيتم مراجعة الطلب والتواصل معكم قريباً
+                </span>
+              </div>
+            `;
+          }
         } else {
-          window.open(url, '_blank');
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = '✅ إرسال التعديل';
+          showToast(response.message, "error", "يرجى المحاولة مرة أخرى", "❌");
         }
       })
-      .catch(function() {
-        if (newTab) { newTab.close(); }
-        showToast('❌ حدث خطأ، يرجى المحاولة لاحقاً', 'error', 'تأكد من اتصالك بالإنترنت', '❌');
+      .catch(function(error) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '✅ إرسال التعديل';
+        showToast("❌ حدث خطأ: " + error.message, "error", "يرجى المحاولة مرة أخرى", "❌");
       });
   }
 
