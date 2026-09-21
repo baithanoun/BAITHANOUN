@@ -1080,27 +1080,23 @@
   };
 
   // ============================================================
-  // ✅ جلب رقم واتساب مرة واحدة عند تحميل الصفحة (يتبدل بالدور مع كل تحميل صفحة، مشترك بين كل الزوار)
-  // يُستخدم لضبط رابط الزر العائم فوراً، ولتوفير رحلة اتصال إضافية عند التسجيل
+  // ✅ اختيار رقم واتساب عشوائياً على المتصفح فوراً عند تحميل الصفحة
+  // (تم التخلي عن انتظار رد السيرفر لهذا الغرض لأن رابط Apps Script exec
+  // قد يستغرق عشرات الثواني أحياناً لبدء التشغيل (cold start)، وأغلب
+  // الزوار يضغطون الزر قبل وصول الرد — فكان التبديل الفعلي دائماً يظهر
+  // نفس الرقم الافتراضي عملياً. الاختيار العشوائي هنا فوري 50/50 بين
+  // الرقمين ولا يعتمد على أي اتصال بالشبكة)
   // ============================================================
-  var DEFAULT_WHATSAPP_NUMBER = "970567783330";
+  var WHATSAPP_NUMBERS = ["970567783330", "970567702050"];
 
   function initWhatsAppNumber() {
+    sessionWhatsAppNumber = WHATSAPP_NUMBERS[Math.random() < 0.5 ? 0 : 1];
+
     var floatingLink = document.getElementById('floatingWhatsAppLink');
     if (floatingLink) {
-      var defaultMessage = "السلام عليكم، لدي استفسار بخصوص خدمات بيت حانون";
-      floatingLink.href = "https://wa.me/" + DEFAULT_WHATSAPP_NUMBER + "?text=" + encodeURIComponent(defaultMessage);
+      var message = "السلام عليكم، لدي استفسار بخصوص خدمات بيت حانون";
+      floatingLink.href = "https://wa.me/" + sessionWhatsAppNumber + "?text=" + encodeURIComponent(message);
     }
-
-    apiPost('getNextWhatsAppNumber', {})
-      .then(function(data) {
-        sessionWhatsAppNumber = data.number;
-        if (floatingLink) {
-          var message = "السلام عليكم، لدي استفسار بخصوص خدمات بيت حانون";
-          floatingLink.href = "https://wa.me/" + data.number + "?text=" + encodeURIComponent(message);
-        }
-      })
-      .catch(function() {});
   }
 
   // ============================================================
@@ -1349,23 +1345,12 @@
     var link = document.getElementById('whatsappRegisterLink');
     if (!link) return;
 
-    function setHref(number) {
-      var message = "السلام عليكم، أرغب في تسجيل أسرتي في سجل بيت حانون:\n\nرقم الهوية: " + id;
-      link.href = "https://wa.me/" + number + "?text=" + encodeURIComponent(message);
+    if (!sessionWhatsAppNumber) {
+      sessionWhatsAppNumber = WHATSAPP_NUMBERS[Math.random() < 0.5 ? 0 : 1];
     }
 
-    setHref(sessionWhatsAppNumber || DEFAULT_WHATSAPP_NUMBER);
-
-    if (sessionWhatsAppNumber) {
-      return;
-    }
-
-    apiPost('getNextWhatsAppNumber', {})
-      .then(function(data) {
-        sessionWhatsAppNumber = data.number;
-        setHref(data.number);
-      })
-      .catch(function() {});
+    var message = "السلام عليكم، أرغب في تسجيل أسرتي في سجل بيت حانون:\n\nرقم الهوية: " + id;
+    link.href = "https://wa.me/" + sessionWhatsAppNumber + "?text=" + encodeURIComponent(message);
   }
 
   // ============================================================
