@@ -344,7 +344,6 @@
     }
 
     .action-buttons .btn-confirm,
-    .action-buttons .whatsapp-link,
     .action-buttons .btn-edit-data {
       flex: 1;
       display: inline-flex;
@@ -403,40 +402,6 @@
       background: #fef5e7;
       border: 2px solid #e67e22;
       padding: 15px;
-    }
-
-    .whatsapp-link {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      margin-top: 12px;
-      padding: 10px 20px;
-      background: #25D366;
-      color: white;
-      text-decoration: none;
-      border-radius: 12px;
-      font-size: 15px;
-      font-weight: bold;
-      transition: all 0.3s;
-      box-shadow: 0 4px 15px rgba(37, 211, 102, 0.3);
-      -webkit-tap-highlight-color: transparent;
-      cursor: pointer;
-    }
-
-    .whatsapp-link:hover {
-      transform: scale(1.05);
-      box-shadow: 0 6px 25px rgba(37, 211, 102, 0.4);
-    }
-
-    .whatsapp-link.disabled {
-      background: #95a5a6;
-      cursor: not-allowed;
-      transform: none !important;
-      box-shadow: none !important;
-    }
-
-    .whatsapp-icon {
-      font-size: 22px;
     }
 
     /* ===== نموذج تسجيل أسرة جديدة ===== */
@@ -508,12 +473,6 @@
     .register-form .btn-register:disabled {
       opacity: 0.6;
       cursor: not-allowed;
-    }
-
-    .register-divider {
-      margin-top: 14px;
-      font-size: 13px;
-      color: #999;
     }
 
     .confirmed-message {
@@ -684,7 +643,7 @@
       }
 
       .action-buttons .btn-confirm,
-      .action-buttons .whatsapp-link {
+      .action-buttons .btn-edit-data {
         width: 100%;
         padding: 12px;
         font-size: 15px;
@@ -1231,18 +1190,8 @@
               </button>
             </div>
 
-            <div class="register-divider">
-              أو
-              <br>
-              <a href="#" id="whatsappRegisterLink" class="whatsapp-link" style="margin-top:8px;" target="_blank">
-                <span class="whatsapp-icon">💬</span>
-                تواصل معنا عبر واتساب
-              </a>
-            </div>
             <div class="search-time" style="margin-top:10px;">⏱️ تم البحث في ${time} مللي ثانية</div>
           `;
-
-          prepareWhatsAppLink(id);
 
         } else {
           resultDiv.className = "danger";
@@ -1339,21 +1288,6 @@
   }
 
   // ============================================================
-  // ✅ ضبط رابط "تواصل معنا عبر واتساب" فور ظهوره (بدون انتظار عند الضغط)
-  // ============================================================
-  function prepareWhatsAppLink(id) {
-    var link = document.getElementById('whatsappRegisterLink');
-    if (!link) return;
-
-    if (!sessionWhatsAppNumber) {
-      sessionWhatsAppNumber = WHATSAPP_NUMBERS[Math.random() < 0.5 ? 0 : 1];
-    }
-
-    var message = "السلام عليكم، أرغب في تسجيل أسرتي في سجل بيت حانون:\n\nرقم الهوية: " + id;
-    link.href = "https://wa.me/" + sessionWhatsAppNumber + "?text=" + encodeURIComponent(message);
-  }
-
-  // ============================================================
   // تأكيد التسجيل
   // ============================================================
   function confirmRegistration() {
@@ -1434,6 +1368,10 @@
         <input type="tel" id="editMobile" value="${prefill(data.mobile)}" placeholder="05XXXXXXXX" inputmode="tel" maxlength="10" autocomplete="off">
       </div>
       <div class="form-group">
+        <label for="editFamilyCount">👨‍👩‍👧‍👦 عدد أفراد الأسرة</label>
+        <input type="tel" id="editFamilyCount" value="${prefill(data.familyCount)}" inputmode="numeric" pattern="[0-9]*" autocomplete="off">
+      </div>
+      <div class="form-group">
         <label for="editGovernorate">🗺️ محافظة النزوح</label>
         <select id="editGovernorate">
           <option value="" disabled selected>محافظة النزوح الحالية</option>
@@ -1471,6 +1409,7 @@
   function submitAddressUpdateForm() {
     var nameInput = document.getElementById('editName');
     var mobileInput = document.getElementById('editMobile');
+    var familyCountInput = document.getElementById('editFamilyCount');
     var governorateInput = document.getElementById('editGovernorate');
     var shelterInput = document.getElementById('editShelter');
     var addressInput = document.getElementById('editAddress');
@@ -1479,6 +1418,7 @@
 
     var name = nameInput.value.trim();
     var mobile = mobileInput.value.replace(/\D/g, '');
+    var familyCount = familyCountInput.value.replace(/\D/g, '');
     var governorate = governorateInput.value;
     var shelter = shelterInput.value.trim();
     var address = addressInput.value.trim();
@@ -1507,6 +1447,7 @@
       hofId: currentIdNumber,
       hofName: name,
       hofMobile: mobile,
+      hofFamilyCount: familyCount,
       hofAddress: address,
       hofGovernorate: governorate,
       hofShelter: shelter,
