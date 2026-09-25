@@ -332,6 +332,15 @@
       font-weight: normal;
     }
 
+    .edit-hint {
+      font-size: 13px;
+      color: #7f6000;
+      background: #fff8e1;
+      border-radius: 10px;
+      padding: 8px 10px;
+      margin-top: 10px;
+    }
+
     /* ===== أزرار الإجراءات ===== */
     .action-buttons {
       display: flex;
@@ -1126,7 +1135,7 @@
                 <span class="icon">✅</span>
                 هذا السجل <strong>مؤكد</strong> بالفعل<br>
                 <span style="font-size: 13px; font-weight: normal; color: #28a745;">
-                  تم تأكيد تسجيل هذه الأسرة مسبقاً
+                  تم تأكيد تسجيل هذه الأسرة مسبقاً، لا يمكن تعديل البيانات بعد التأكيد
                 </span>
               </div>
             `;
@@ -1135,17 +1144,16 @@
               <div class="status-badge">✅ مسجل</div>
               ${tableHtml}
               <div class="search-time">⏱️ تم البحث في ${time} مللي ثانية</div>
-             <div class="action-buttons">
-                
+              <div class="edit-hint">💡 يمكنك تعديل البيانات من خلال الضغط على زر "تعديل البيانات"</div>
+              <div class="action-buttons">
                 <button class="btn-edit-data" onclick="toggleEditForm()">
                   ✏️ تعديل البيانات
                 </button>
               </div>
-			   <div class="action-buttons">
+              <div class="action-buttons">
                 <button class="btn-confirm" onclick="confirmRegistration()">
                   ✅ تأكيد التسجيل
                 </button>
-               
               </div>
             `;
           }
@@ -1310,6 +1318,10 @@
   // تأكيد التسجيل
   // ============================================================
   function confirmRegistration() {
+    if (!confirm("سيتم تثبيت البيانات ولا يمكن التعديل بعد التثبيت")) {
+      return;
+    }
+
     if (currentRowIndex === null || currentRowIndex === undefined) {
       showToast("❌ لا يوجد سجل للتأكيد", "error", "يرجى البحث أولاً", "❌");
       return;
@@ -1324,10 +1336,9 @@
         if (response.success) {
           showToast(response.message, "success", "تم تحديث حالة السجل", "✅");
 
-          var actionButtons = document.querySelector('.action-buttons');
-          if (actionButtons) {
-            actionButtons.classList.add('hidden');
-          }
+          document.querySelectorAll('.action-buttons').forEach(function(el) {
+            el.classList.add('hidden');
+          });
 
           var resultDiv = document.getElementById('result');
           var confirmedMessage = document.createElement('div');
@@ -1364,14 +1375,15 @@
   // ============================================================
   function toggleEditForm() {
     var confirmBtn = document.querySelector('.btn-confirm');
+    var confirmRow = confirmBtn ? confirmBtn.closest('.action-buttons') : null;
     var existing = document.getElementById('editForm');
     if (existing) {
       existing.remove();
-      if (confirmBtn) { confirmBtn.style.display = ''; }
+      if (confirmRow) { confirmRow.classList.remove('hidden'); }
       return;
     }
 
-    if (confirmBtn) { confirmBtn.style.display = 'none'; }
+    if (confirmRow) { confirmRow.classList.add('hidden'); }
 
     var data = currentSearchData || {};
     var prefill = function(value) {
@@ -1428,6 +1440,8 @@
 
     var actionButtons = document.querySelector('.action-buttons');
     actionButtons.insertAdjacentElement('afterend', container);
+
+    container.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   // ============================================================
