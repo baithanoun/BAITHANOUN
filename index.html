@@ -951,6 +951,13 @@
   // ============================================================
   // بناء جدول بيانات النتيجة (مستخدم لكل من الحالة المؤكدة وغير المؤكدة)
   // ============================================================
+  function buildCurrentAddress_(data) {
+    var parts = [data.currGov, data.currCity, data.currAddress].filter(function(v) {
+      return v && v !== "-";
+    });
+    return parts.length ? parts.join(" - ") : "-";
+  }
+
   function buildResultTable(data) {
     var rows = [
       ['👨‍👩‍👧‍👦 رب الأسرة', '<strong>' + escapeHtml(data.name || "-") + '</strong>'],
@@ -960,7 +967,8 @@
       ['🆔 رقم هوية الزوجة', escapeHtml(data.wifeId || "-")],
       ['🏠 مكان السكن', escapeHtml(data.bhAz || "-")],
       ['📱 رقم الجوال', escapeHtml(data.mobile || "-")],
-      ['👨‍👩‍👧‍👦 عدد الأفراد', escapeHtml(data.familyCount || "-")]
+      ['👨‍👩‍👧‍👦 عدد الأفراد', escapeHtml(data.familyCount || "-")],
+      ['📍 العنوان الحالي', escapeHtml(buildCurrentAddress_(data))]
     ];
 
     var html = '<table class="result-table">';
@@ -1044,11 +1052,10 @@
   // قد يستغرق عشرات الثواني أحياناً لبدء التشغيل (cold start)، وأغلب
   // الزوار يضغطون الزر قبل وصول الرد — فكان التبديل الفعلي دائماً يظهر
   // نفس الرقم الافتراضي عملياً. الاختيار العشوائي هنا فوري 50/50 بين
-  // الرقمين ولا يعتمد على أي اتصال بالشبكة)   
+  // الرقمين ولا يعتمد على أي اتصال بالشبكة)
   // ============================================================
- 
-  var WHATSAPP_NUMBERS = ["970567783330", "970567817770"];
-//   var WHATSAPP_NUMBERS = ["970567783330", "970567702050"];
+  var WHATSAPP_NUMBERS = ["970567783330", "970567702050"];
+
   function initWhatsAppNumber() {
     sessionWhatsAppNumber = WHATSAPP_NUMBERS[Math.random() < 0.5 ? 0 : 1];
 
@@ -1129,22 +1136,13 @@
               ${tableHtml}
               <div class="search-time">⏱️ تم البحث في ${time} مللي ثانية</div>
               <div class="action-buttons">
-               <button class="btn-edit-data" onclick="toggleEditForm()">
-                  ✏️ تعديل البيانات
-                </button>
-                
-                 
-               
-              </div>
-               <div class="action-buttons">
-               
-                
                 <button class="btn-confirm" onclick="confirmRegistration()">
                   ✅ تأكيد التسجيل
                 </button>
-               
+                <button class="btn-edit-data" onclick="toggleEditForm()">
+                  ✏️ تعديل البيانات
+                </button>
               </div>
-              
             `;
           }
 
@@ -1171,6 +1169,10 @@
                 <label for="regMobile">📱 رقم الجوال</label>
                 <input type="tel" id="regMobile" placeholder="05XXXXXXXX" inputmode="tel" maxlength="10" autocomplete="off">
               </div>
+              <div class="form-group">
+                <label for="regOriginalCity">🏡 مكان السكن الأصلي</label>
+                <input type="text" id="regOriginalCity" placeholder="مكان السكن قبل النزوح" autocomplete="off">
+              </div>
                 <div class="form-group">
                 <label for="regGovernorate">🗺️ محافظة النزوح</label>
                 <select id="regGovernorate">
@@ -1188,7 +1190,7 @@
               </div>
               <div class="form-group">
                 <label for="regAddress">🏠 العنوان الحالي للنزوح</label>
-                <input type="text" id="regAddress" placeholder="العنوان الحالي بالتفصيل" autocomplete="off">
+                <input type="text" id="regAddress" placeholder="المدينة / الحي / اقرب معلم" autocomplete="off">
               </div>
 
               <div class="form-group">
@@ -1226,6 +1228,7 @@
   function submitRegistration() {
     var nameInput = document.getElementById('regName');
     var mobileInput = document.getElementById('regMobile');
+    var originalCityInput = document.getElementById('regOriginalCity');
     var addressInput = document.getElementById('regAddress');
     var governorateInput = document.getElementById('regGovernorate');
     var shelterInput = document.getElementById('regShelter');
@@ -1234,6 +1237,7 @@
 
     var name = nameInput.value.trim();
     var mobile = mobileInput.value.replace(/\D/g, '');
+    var originalCity = originalCityInput.value.trim();
     var address = addressInput.value.trim();
     var governorate = governorateInput.value;
     var shelter = shelterInput.value.trim();
@@ -1262,6 +1266,7 @@
       hofId: currentIdNumber,
       hofName: name,
       hofMobile: mobile,
+      hofOriginalCity: originalCity,
       hofAddress: address,
       hofGovernorate: governorate,
       hofShelter: shelter,
@@ -1354,11 +1359,15 @@
   // ✅ إظهار/إخفاء نموذج تعديل بيانات الأسرة (مُعبّأ مسبقاً بالبيانات الحالية)
   // ============================================================
   function toggleEditForm() {
+    var confirmBtn = document.querySelector('.btn-confirm');
     var existing = document.getElementById('editForm');
     if (existing) {
       existing.remove();
+      if (confirmBtn) { confirmBtn.style.display = ''; }
       return;
     }
+
+    if (confirmBtn) { confirmBtn.style.display = 'none'; }
 
     var data = currentSearchData || {};
     var prefill = function(value) {
@@ -1382,6 +1391,10 @@
         <input type="tel" id="editFamilyCount" value="${prefill(data.familyCount)}" inputmode="numeric" pattern="[0-9]*" autocomplete="off">
       </div>
       <div class="form-group">
+        <label for="editOriginalCity">🏡 مكان السكن الأصلي</label>
+        <input type="text" id="editOriginalCity" value="${prefill(data.bhAz)}" placeholder="مكان السكن قبل النزوح" autocomplete="off">
+      </div>
+      <div class="form-group">
         <label for="editGovernorate">🗺️ محافظة النزوح</label>
         <select id="editGovernorate">
           <option value="" disabled selected>محافظة النزوح الحالية</option>
@@ -1398,7 +1411,7 @@
       </div>
       <div class="form-group">
         <label for="editAddress">🏠 العنوان الحالي للنزوح</label>
-        <input type="text" id="editAddress" value="${prefill(data.bhAz)}" placeholder="العنوان الحالي بالتفصيل" autocomplete="off">
+        <input type="text" id="editAddress" placeholder="المدينة / الحي / اقرب معلم" autocomplete="off">
       </div>
       <div class="form-group">
         <label for="editNotes">📝 ملاحظات (اختياري)</label>
@@ -1420,6 +1433,7 @@
     var nameInput = document.getElementById('editName');
     var mobileInput = document.getElementById('editMobile');
     var familyCountInput = document.getElementById('editFamilyCount');
+    var originalCityInput = document.getElementById('editOriginalCity');
     var governorateInput = document.getElementById('editGovernorate');
     var shelterInput = document.getElementById('editShelter');
     var addressInput = document.getElementById('editAddress');
@@ -1429,6 +1443,7 @@
     var name = nameInput.value.trim();
     var mobile = mobileInput.value.replace(/\D/g, '');
     var familyCount = familyCountInput.value.replace(/\D/g, '');
+    var originalCity = originalCityInput.value.trim();
     var governorate = governorateInput.value;
     var shelter = shelterInput.value.trim();
     var address = addressInput.value.trim();
@@ -1458,6 +1473,7 @@
       hofName: name,
       hofMobile: mobile,
       hofFamilyCount: familyCount,
+      hofOriginalCity: originalCity,
       hofAddress: address,
       hofGovernorate: governorate,
       hofShelter: shelter,
