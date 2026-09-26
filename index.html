@@ -500,6 +500,22 @@
       margin-bottom: 5px;
     }
 
+    .pending-message {
+      background: #fef5e7;
+      color: #7f6000;
+      padding: 15px;
+      border-radius: 12px;
+      border: 2px solid #e67e22;
+      margin-top: 12px;
+      font-size: 15px;
+    }
+
+    .pending-message .icon {
+      font-size: 28px;
+      display: block;
+      margin-bottom: 5px;
+    }
+
     /* ===== التذييل ===== */
     .footer {
       margin-top: 10px;
@@ -1122,6 +1138,7 @@
           currentRowIndex = response.rowIndex;
           currentSearchData = data;
           isConfirmed = response.isConfirmed || false;
+          var hasEditPending = response.hasEditPending || false;
 
           var html = '';
           var tableHtml = buildResultTable(data);
@@ -1139,12 +1156,25 @@
                 </span>
               </div>
             `;
+          } else if (hasEditPending) {
+            html += `
+              <div class="status-badge">✅ مسجل</div>
+              ${tableHtml}
+              <div class="search-time">⏱️ تم البحث في ${time} مللي ثانية</div>
+              <div class="pending-message">
+                <span class="icon">📝</span>
+                تم تقديم طلب تعديل لبيانات هذه الأسرة<br>
+                <span style="font-size: 13px; font-weight: normal;">
+                  سيتم مراجعة الطلب والتواصل معكم قريباً
+                </span>
+              </div>
+            `;
           } else {
             html += `
               <div class="status-badge">✅ مسجل</div>
               ${tableHtml}
               <div class="search-time">⏱️ تم البحث في ${time} مللي ثانية</div>
-              <div class="edit-hint">💡في حال البيانات غير صحيحة، يمكنك تعديل البيانات من خلال الضغط على زر "تعديل البيانات قبل التأكيد"</div>
+              <div class="edit-hint">💡 يمكنك تعديل البيانات من خلال الضغط على زر "تعديل البيانات"</div>
               <div class="action-buttons">
                 <button class="btn-edit-data" onclick="toggleEditForm()">
                   ✏️ تعديل البيانات
